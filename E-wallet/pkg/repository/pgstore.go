@@ -2,9 +2,10 @@ package repository
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
-	"time"
 )
 
 type Wallet struct {
@@ -49,3 +50,56 @@ func (pg *PG) CreateWallet(wallet Wallet) (int, error) {
 }
 
 //Update(````),Delete(`````),Get(````````)
+func (pg *PG) UpdateWallet(id int , newBalance float64) error {
+
+	query := `UPDATE wallet SET balance=?, UpdatedAt=? WHERE id=?`
+	_, err := pg.db.Exec(query, newBalance, time.Now(), id)
+	if err != nil {
+		return fmt.Errorf("update failed: %w", err)
+	}
+
+	fmt.Println("Update is success")
+
+	return nil
+
+}
+
+func (pg *PG) GetAllWallets()(wallets []Wallet, err error){
+	
+	query := `SELECT * FROM wallet`
+
+	err = pg.db.Select(&wallets, query)
+
+	if err != nil{
+		return wallets, fmt.Errorf("gets wallets failed: %w", err )
+	}
+
+	return
+}
+
+func (pg *PG) GetWallet(id int) (w Wallet, err error) {
+	query := `SELECT * FROM wallet WHERE id=?`
+	
+	err = pg.db.Get(&w,query,id)
+	if err != nil{
+		return w, fmt.Errorf("wallet not found %w", err)
+	}
+
+	return
+}
+
+func (pg *PG) DeleteWallet(id int) (int, error){
+
+	  query := `Delete FROM wallet WHERE id=?`
+	_, err := pg.db.Exec(query,id)
+
+	if err != nil {
+		return 0, fmt.Errorf("delete failed: %w", err)
+	}
+
+	fmt.Println("Delete is success")
+
+	return id, nil
+}
+
+
