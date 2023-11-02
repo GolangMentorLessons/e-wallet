@@ -16,6 +16,11 @@ type Service interface {
 	GetWallet(id int) (repo.Wallet,error)
 	GetAllWallets(owner string) ([]repo.Wallet,error)
 	DeleteWallet(id int) (int,error)
+
+	//transaction 
+	Transfer(transaction repo.Transaction) (int,error)
+	Withdraw(transaction repo.Transaction)(int, error)
+
 }
 type Router struct {
 	log     *logrus.Entry
@@ -29,11 +34,17 @@ func NewRouter(log *logrus.Logger, service Service) *Router {
 		router:  gin.Default(),
 		service: service,
 	}
+	
 	r.router.GET("/wallet/:id:", r.getWallets)
 	r.router.GET("/wallet/:owner", r.getWallet)
 	r.router.POST("/wallet", r.createWallet)
-	r.router.PATCH("/wallet/:id:",r.updateWallet)
+	r.router.PUT("/wallet/:id:",r.updateWallet)
 	r.router.DELETE("/wallet/:id", r.deleteWallet)
+
+	r.router.DELETE("/wallet/:id", r.deleteWallet)
+
+	r.router.PUT("/wallet/transfer", r.transfer)
+	r.router.PUT("/wallet/withdraw", r.withdraw)
  
 
 	return r
@@ -135,3 +146,37 @@ func (r *Router) deleteWallet(c *gin.Context){
 
 	c.JSON(http.StatusOK, gin.H{"id delete": id})
 }
+
+func (r *Router) transfer(c *gin.Context) {
+	var input repo.Transaction
+	if err := c.BindJSON(&input);err != nil{
+		c.JSON(http.StatusBadRequest,err)
+		return 
+	}
+
+	idTX, err := r.service.Transfer(input)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError,err)
+		return
+	}
+
+	c.JSON(http.StatusOK,  gin.H{"transfer": idTX})
+}	
+
+func (r *Router) withdraw(c *gin.Context) {
+	var input repo.Transaction
+	if err := c.BindJSON(&input);err != nil{
+		c.JSON(http.StatusBadRequest,err)
+		return 
+	}
+
+	idTX, err := r.service.Withdraw(input)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError,err)
+		return
+	}
+
+	c.JSON(http.StatusOK,  gin.H{"transfer": idTX})
+}	

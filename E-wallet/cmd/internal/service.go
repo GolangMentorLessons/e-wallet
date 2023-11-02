@@ -13,6 +13,12 @@ type Storage interface {
 	GetWallet(id int) (wallet repo.Wallet, err error)
 	GetAllWallets(owner string) (wallets []repo.Wallet, err error)
 	DeleteWallet(id int) (int, error)
+
+	//transaction 
+	Transfer(transaction repo.Transaction) (int,error)
+	Withdraw(transaction repo.Transaction)(int, error)
+
+
 }
 
 type Service struct {
@@ -65,4 +71,24 @@ func(s *Service) DeleteWallet(id int) (int,error){
 		return 0, fmt.Errorf("error gets all wallets owner:%v",err)
 	}
 	return id,nil
+}
+
+func(s *Service) Transfer(transaction repo.Transaction) (int,error){
+
+	txId,err := s.store.Transfer(transaction)
+
+	if err != nil {
+		return 0, fmt.Errorf("error transfer amount: %v",err)
+	}
+
+	return txId,nil
+}
+
+func (s *Service) Withdraw(transaction repo.Transaction )(int,error){
+	txId,err := s.store.Withdraw(transaction)
+	if err != nil {
+		return 0, fmt.Errorf("error transfer amount: %v",err)
+	}
+
+	return txId,nil
 }
