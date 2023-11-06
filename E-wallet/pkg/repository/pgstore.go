@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"E-wallet/pkg/metrics"
 	"fmt"
 	"time"
 
@@ -22,7 +23,7 @@ type Transaction struct{
 	ToID int  `json:"to_id"`
 	FromWallet int `json:"from_wallet"`
 	ToWallet int `json:"to_wallet"`
-	Amount int  `json:"amount"`
+	Amount float64  `json:"amount"`
 	CreatedAt time.Time  `json:"created_at"` 
 	Operation string  `json:"operation"`
 }
@@ -56,6 +57,10 @@ func NewRepo(dsn string, log *logrus.Logger) (*PG, error) {
 }
 
 func (pg *PG) CreateWallet(wallet Wallet) (int, error) {
+	started := time.Now()
+	defer func() {
+		metrics.MetricDBRequestDuration.WithLabelValues("CreateWallet").Observe(time.Since(started).Seconds())
+	}()
 	query := `INSERT INTO wallet(owner,balance,updated_at,account_number) VALUES ($1,$2,$3,$4) returning id`
 	var id int
 	row := pg.db.QueryRow(query, wallet.Owner, wallet.Balance, wallet.UpdatedAt, wallet.AccountNumber)
@@ -67,7 +72,10 @@ func (pg *PG) CreateWallet(wallet Wallet) (int, error) {
 
 //Update(````),Delete(`````),Get(````````)
 func (pg *PG) UpdateWallet(id int, wallet Wallet) (Wallet, error) {
-
+	started := time.Now()
+	defer func() {
+		metrics.MetricDBRequestDuration.WithLabelValues("UpdateWallet").Observe(time.Since(started).Seconds())
+	}()
 	query := `UPDATE wallet SET balance = ?, updatedAt = ? WHERE id = ?`
 	row := pg.db.QueryRow(query, wallet.Balance, time.Now(), id)
 	err := row.Scan(&wallet)
@@ -78,6 +86,10 @@ func (pg *PG) UpdateWallet(id int, wallet Wallet) (Wallet, error) {
 }
 
 func (pg *PG) GetWallet(id int) (wallet Wallet, err error) {
+	started := time.Now()
+	defer func() {
+		metrics.MetricDBRequestDuration.WithLabelValues("GetWallet").Observe(time.Since(started).Seconds())
+	}()
 	query := `SELECT * FROM wallet WHERE id=?`
 
 	err = pg.db.Get(&wallet, query, id)
@@ -89,7 +101,10 @@ func (pg *PG) GetWallet(id int) (wallet Wallet, err error) {
 }
 
 func (pg *PG) GetAllWallets(owner string) (wallets []Wallet, err error) {
-
+	started := time.Now()
+	defer func() {
+		metrics.MetricDBRequestDuration.WithLabelValues("GetAllWallets").Observe(time.Since(started).Seconds())
+	}()
 	query := `SELECT * FROM wallet where owner = ?`
 
 	err = pg.db.Select(&wallets, query, owner)
@@ -102,7 +117,10 @@ func (pg *PG) GetAllWallets(owner string) (wallets []Wallet, err error) {
 }
 
 func (pg *PG) DeleteWallet(id int) (int, error) {
-
+	started := time.Now()
+	defer func() {
+		metrics.MetricDBRequestDuration.WithLabelValues("DeleteWallet").Observe(time.Since(started).Seconds())
+	}()
 	query := `Delete FROM wallet WHERE id=?`
 	_, err := pg.db.Exec(query, id)
 
@@ -116,6 +134,10 @@ func (pg *PG) DeleteWallet(id int) (int, error) {
 }
 
 func (pg *PG) createTransaction(transaction Transaction)(int,error) {
+	started := time.Now()
+	defer func() {
+		metrics.MetricDBRequestDuration.WithLabelValues("createTransaction").Observe(time.Since(started).Seconds())
+	}()
 	query := `INSERT INTO transaction(from_wallet,to_wallet,amount,created_at,operation) VALUES ($1,$2,$3,$4,$5) returning id`
 	var id int
 	row := pg.db.QueryRow(query,transaction.FromWallet,transaction.ToWallet,transaction.Amount,time.Now(),transaction.Operation)
@@ -128,6 +150,10 @@ func (pg *PG) createTransaction(transaction Transaction)(int,error) {
 
 func (pg *PG) Transfer(transaction Transaction) (int,error){
 	//TODO: change nils, do not pass a nil Context, even if a function permits it; pass context.TODO if you are unsure about which Context to use (SA1012)
+	started := time.Now()
+	defer func() {
+		metrics.MetricDBRequestDuration.WithLabelValues("Transfer").Observe(time.Since(started).Seconds())
+	}()
 	tx, errRoll := pg.db.BeginTx(nil,nil)
 	defer func(){
 		if errRoll = tx.Rollback(); errRoll != nil{
@@ -162,6 +188,10 @@ func (pg *PG) Transfer(transaction Transaction) (int,error){
 }
 
 func (pg *PG) Withdraw(transaction Transaction)(int, error)  {
+	started := time.Now()
+	defer func() {
+		metrics.MetricDBRequestDuration.WithLabelValues("Withdraw").Observe(time.Since(started).Seconds())
+	}()
 	tx, errRoll := pg.db.BeginTx(nil,nil)
 	defer func(){
 		if errRoll = tx.Rollback(); errRoll != nil{
@@ -187,4 +217,19 @@ func (pg *PG) Withdraw(transaction Transaction)(int, error)  {
 
 	}
 	return newIdTx, nil
+}
+
+func(pg *PG) CheckBalance(id int)(wallet Wallet, err error){
+	started := time.Now()
+	defer func() {
+		metrics.MetricDBRequestDuration.WithLabelValues("CheckBalance").Observe(time.Since(started).Seconds())
+	}()
+	query := "SELECT * FROM wallet where id = ?"
+
+	err = pg.db.Select(&wallet,query,id)
+
+	if err != nil {
+		return wallet, fmt.Errorf("gets wallets failed: %w", err)
+	}
+	return
 }

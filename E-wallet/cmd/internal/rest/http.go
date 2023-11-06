@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 )
 
@@ -20,12 +21,20 @@ type Service interface {
 	//transaction 
 	Transfer(transaction repo.Transaction) (int,error)
 	Withdraw(transaction repo.Transaction)(int, error)
+	CheckBalance(id int) (wallet repo.Wallet, err error)
 
 }
 type Router struct {
 	log     *logrus.Entry
 	router  *gin.Engine
 	service Service
+}
+
+func prometheusHandler() gin.HandlerFunc {
+	h := promhttp.Handler()
+	return func(c *gin.Context) {
+		h.ServeHTTP(c.Writer, c.Request)
+	}
 }
 
 func NewRouter(log *logrus.Logger, service Service) *Router {
@@ -35,6 +44,7 @@ func NewRouter(log *logrus.Logger, service Service) *Router {
 		service: service,
 	}
 	
+	r.router.GET("/metrics", prometheusHandler())
 	r.router.GET("/wallet/:id:", r.getWallets)
 	r.router.GET("/wallet/:owner", r.getWallet)
 	r.router.POST("/wallet", r.createWallet)
@@ -45,6 +55,7 @@ func NewRouter(log *logrus.Logger, service Service) *Router {
 
 	r.router.PUT("/wallet/transfer", r.transfer)
 	r.router.PUT("/wallet/withdraw", r.withdraw)
+	r.router.GET("/wallet/checkbalance/:id", r.checkBalance)
  
 
 	return r
@@ -180,3 +191,23 @@ func (r *Router) withdraw(c *gin.Context) {
 
 	c.JSON(http.StatusOK,  gin.H{"transfer": idTX})
 }	
+
+func (r *Router) checkBalance(c *gin.Context){
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+
+	if err != nil{
+		c.JSON(http.StatusBadRequest,err)
+		return
+	}
+	
+	wallet, err := r.service.CheckBalance(id)
+
+	if err != nil{
+		c.JSON(http.StatusInternalServerError,err)
+		return 
+	}
+
+	c.JSON(http.StatusOK, gin.H{"walletBalance": wallet})
+
+}

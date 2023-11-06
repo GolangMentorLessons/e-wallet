@@ -17,6 +17,8 @@ type Storage interface {
 	//transaction 
 	Transfer(transaction repo.Transaction) (int,error)
 	Withdraw(transaction repo.Transaction)(int, error)
+	CheckBalance(id int) (wallet repo.Wallet, err error)
+	
 
 
 }
@@ -91,4 +93,15 @@ func (s *Service) Withdraw(transaction repo.Transaction )(int,error){
 	}
 
 	return txId,nil
+}
+
+func (s *Service) CheckBalance(id int ) (wallet repo.Wallet, err error){
+	wallet,err = s.store.CheckBalance(id)
+
+	if err != nil {
+		return wallet, fmt.Errorf("error transfer amount: %v",err)
+	}
+
+	return  
+
 }
