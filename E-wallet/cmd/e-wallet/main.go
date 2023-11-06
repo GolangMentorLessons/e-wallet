@@ -27,7 +27,7 @@ func main() {
 	service := internal.NewService(log, pg)
 
 	r := rest.NewRouter(log, service)
-	
+
 	go func() {
 		if err := r.Run(port); err != nil {
 			log.Panicf("Error starting server")
