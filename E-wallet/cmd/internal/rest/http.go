@@ -44,12 +44,11 @@ func prometheusHandler() gin.HandlerFunc {
 	}
 }
 
-func NewRouter(log *logrus.Logger, service Service, ram ServiceRaM) *Router {
+func NewRouter(log *logrus.Logger, service Service) *Router {
 	r := &Router{
 		log:     log.WithField("transport", "e-wallet"),
 		router:  gin.Default(),
 		service: service,
-		ram: ram,
 	}
 	
 	r.router.GET("/metrics", prometheusHandler())
@@ -67,6 +66,7 @@ func NewRouter(log *logrus.Logger, service Service, ram ServiceRaM) *Router {
 	//rickandMorty
 
 	r.router.GET("/allepisodes",r.allepisodes)
+	r.router.GET("/allepisodes",r.getepisod)
 
 
 	return r
