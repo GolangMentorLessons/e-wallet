@@ -161,8 +161,13 @@ func (pg *PG) Transfer(transaction Transaction) (int,error){
 		}
 	}() 
 
+	
+	err := pg.checkBalance(transaction.FromID,transaction.Amount)
+	if err != nil{
+		return 0, fmt.Errorf("error in check Balance:%w",err)
+	}
 	query := `UPDATE wallet SET balance = balance - $1 WHERE id = $2 RETURNING balance`
-	_, err := pg.db.Exec(query, transaction.Amount,transaction.FromID)
+	_, err = pg.db.Exec(query, transaction.Amount,transaction.FromID)
 
 	 if err != nil{
 		return 0, fmt.Errorf("error with update from id balance:%w",err)
@@ -198,9 +203,15 @@ func (pg *PG) Withdraw(transaction Transaction)(int, error)  {
 			pg.log.Error("err rolling back transaction")
 		}
 	}() 
+
+	err := pg.checkBalance(transaction.FromID,transaction.Amount)
+	if err != nil{
+		return 0, fmt.Errorf("error in check Balance:%w",err)
+	}
+
 	query := `UPDATE wallet set balance = balance - $1 WHERE id = $2`
 
-	_,err := pg.db.Exec(query,transaction.Amount,transaction.FromID)
+	_,err = pg.db.Exec(query,transaction.Amount,transaction.FromID)
 
 	if err != nil{
 		return 0, fmt.Errorf("error in withdraw:%w",err)
@@ -219,17 +230,27 @@ func (pg *PG) Withdraw(transaction Transaction)(int, error)  {
 	return newIdTx, nil
 }
 
-func(pg *PG) CheckBalance(id int)(wallet Wallet, err error){
+func(pg *PG) checkBalance(id int, balance float64) error{
+	var wallet Wallet
 	started := time.Now()
 	defer func() {
 		metrics.MetricDBRequestDuration.WithLabelValues("CheckBalance").Observe(time.Since(started).Seconds())
 	}()
 	query := "SELECT * FROM wallet where id = ?"
 
-	err = pg.db.Select(&wallet,query,id)
+	err := pg.db.Select(&wallet,query,id)
+
 
 	if err != nil {
-		return wallet, fmt.Errorf("gets wallets failed: %w", err)
+		return  fmt.Errorf("check id is failed: %w", err)
 	}
-	return
+
+	if wallet.Balance == 0{
+		return  fmt.Errorf("check balance is zero")
+	}
+
+	if wallet.Balance < balance{
+		return fmt.Errorf("check balance is less")
+	}
+	return nil
 }

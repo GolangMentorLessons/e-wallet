@@ -2,6 +2,7 @@ package rest
 
 import (
 	repo "E-wallet/pkg/repository"
+	ram "E-wallet/pkg/rickandmorty"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -21,13 +22,19 @@ type Service interface {
 	//transaction 
 	Transfer(transaction repo.Transaction) (int,error)
 	Withdraw(transaction repo.Transaction)(int, error)
-	CheckBalance(id int) (wallet repo.Wallet, err error)
-
+	CheckBalance(id int, balance float64) (wallet repo.Wallet, err error)
 }
+
+type ServiceRaM interface {
+	GetAllEposode() ([]ram.Resp,error)
+	GetEpisode(id int) (ram.Resp, error)
+}
+
 type Router struct {
 	log     *logrus.Entry
 	router  *gin.Engine
 	service Service
+	ram ServiceRaM
 }
 
 func prometheusHandler() gin.HandlerFunc {
@@ -37,11 +44,12 @@ func prometheusHandler() gin.HandlerFunc {
 	}
 }
 
-func NewRouter(log *logrus.Logger, service Service) *Router {
+func NewRouter(log *logrus.Logger, service Service, ram ServiceRaM) *Router {
 	r := &Router{
 		log:     log.WithField("transport", "e-wallet"),
 		router:  gin.Default(),
 		service: service,
+		ram: ram,
 	}
 	
 	r.router.GET("/metrics", prometheusHandler())
@@ -55,8 +63,11 @@ func NewRouter(log *logrus.Logger, service Service) *Router {
 
 	r.router.PUT("/wallet/transfer", r.transfer)
 	r.router.PUT("/wallet/withdraw", r.withdraw)
-	r.router.GET("/wallet/checkbalance/:id", r.checkBalance)
- 
+
+	//rickandMorty
+
+	r.router.GET("/allepisodes",r.allepisodes)
+
 
 	return r
 
@@ -190,24 +201,35 @@ func (r *Router) withdraw(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK,  gin.H{"transfer": idTX})
-}	
+}
 
-func (r *Router) checkBalance(c *gin.Context){
+//rickandmory handler
+
+func (r *Router) allepisodes(c *gin.Context){
+	ram,err := r.ram.GetAllEposode()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError,err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"episodes": ram})
+}
+
+func (r *Router) getepisod(c *gin.Context){
 	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
 
-	if err != nil{
+	id,err := strconv.Atoi(idStr)
+
+	if err != nil {
 		c.JSON(http.StatusBadRequest,err)
 		return
 	}
-	
-	wallet, err := r.service.CheckBalance(id)
 
-	if err != nil{
+	ram,err := r.ram.GetEpisode(id)
+
+	if err != nil {
 		c.JSON(http.StatusInternalServerError,err)
-		return 
+		return
 	}
-
-	c.JSON(http.StatusOK, gin.H{"walletBalance": wallet})
-
+	
+	c.JSON(http.StatusOK, gin.H{"episodes": ram})
 }

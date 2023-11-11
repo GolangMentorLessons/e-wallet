@@ -2,6 +2,7 @@ package internal
 
 import (
 	repo "E-wallet/pkg/repository"
+	ram "E-wallet/pkg/rickandmorty"
 	"fmt"
 
 	"github.com/sirupsen/logrus"
@@ -17,15 +18,19 @@ type Storage interface {
 	//transaction 
 	Transfer(transaction repo.Transaction) (int,error)
 	Withdraw(transaction repo.Transaction)(int, error)
-	CheckBalance(id int) (wallet repo.Wallet, err error)
 	
+}
 
+type StorageRaM interface{
+	GetAllEposode() ([]ram.Resp,error)
+	GetEpisode(id int) (ram.Resp, error)
 
 }
 
 type Service struct {
 	log   *logrus.Entry
 	store Storage
+	ram StorageRaM
 }
 
 func NewService(log *logrus.Logger, store Storage) *Service {
@@ -95,13 +100,21 @@ func (s *Service) Withdraw(transaction repo.Transaction )(int,error){
 	return txId,nil
 }
 
-func (s *Service) CheckBalance(id int ) (wallet repo.Wallet, err error){
-	wallet,err = s.store.CheckBalance(id)
-
+func (s *Service) GetAllEpisodes() ([]ram.Resp,error){
+	resp, err := s.ram.GetAllEposode()
 	if err != nil {
-		return wallet, fmt.Errorf("error transfer amount: %v",err)
+		return resp, fmt.Errorf("error with all e service:%w",err)
 	}
 
-	return  
+	return resp,nil
+}
 
+func (s *Service) GetEposode(id int) (ram.Resp, error){
+	
+	resp, err := s.ram.GetEpisode(id)
+	if err != nil {
+		return resp, fmt.Errorf("error in service:%w",err)
+	}
+
+	return resp, nil
 }
