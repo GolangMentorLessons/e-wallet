@@ -162,7 +162,7 @@ func (pg *PG) Transfer(transaction Transaction) (int,error){
 	}() 
 
 	
-	err := pg.checkBalance(transaction.FromID,transaction.Amount)
+	err := checkBalance(transaction.FromID,transaction.Amount, pg)
 	if err != nil{
 		return 0, fmt.Errorf("error in check Balance:%w",err)
 	}
@@ -204,7 +204,7 @@ func (pg *PG) Withdraw(transaction Transaction)(int, error)  {
 		}
 	}() 
 
-	err := pg.checkBalance(transaction.FromID,transaction.Amount)
+	err := checkBalance(transaction.FromID,transaction.Amount, pg)
 	if err != nil{
 		return 0, fmt.Errorf("error in check Balance:%w",err)
 	}
@@ -230,11 +230,11 @@ func (pg *PG) Withdraw(transaction Transaction)(int, error)  {
 	return newIdTx, nil
 }
 
-func(pg *PG) checkBalance(id int, balance float64) error{
+func checkBalance(id int, balance float64, pg *PG) error{
 	var wallet Wallet
 	started := time.Now()
 	defer func() {
-		metrics.MetricDBRequestDuration.WithLabelValues("CheckBalance").Observe(time.Since(started).Seconds())
+		metrics.MetricDBRequestDuration.WithLabelValues("сheckBalance").Observe(time.Since(started).Seconds())
 	}()
 	query := "SELECT * FROM wallet where id = ?"
 
